@@ -1,103 +1,184 @@
-/**
- * Premium Todo Card Logic
- * Vanilla JavaScript implementation for HNG task.
- */
+document.addEventListener("DOMContentLoaded", () => {
+  const todoCard = document.getElementById("todo-card");
+  const todoToggle = document.getElementById("todo-toggle");
+  const todoTitle = document.getElementById("todo-title");
+  const statusDisplay = document.getElementById("status-display");
+  const statusControl = document.getElementById("status-control");
+  const priorityDisplay = document.getElementById("priority-display");
+  const dueDateDisplay = document.getElementById("due-date-display");
+  const timeRemainingEl = document.getElementById("time-remaining");
+  const todoDesc = document.querySelector(
+    '[data-testid="test-todo-description"]',
+  );
+  const collapsibleSection = document.getElementById("todo-desc-section");
+  const expandToggle = document.getElementById("expand-toggle");
 
-document.addEventListener('DOMContentLoaded', () => {
-    const todoToggle = document.querySelector('[data-testid="test-todo-complete-toggle"]');
-    const todoTitle = document.querySelector('[data-testid="test-todo-title"]');
-    const todoStatus = document.querySelector('[data-testid="test-todo-status"]');
-    const timeRemainingEl = document.getElementById('time-remaining');
-    const dueDateEl = document.querySelector('[data-testid="test-todo-due-date"]');
-    const editBtn = document.querySelector('[data-testid="test-todo-edit-button"]');
-    const deleteBtn = document.querySelector('[data-testid="test-todo-delete-button"]');
+  const editBtn = document.getElementById("edit-btn");
+  const deleteBtn = document.getElementById("delete-btn");
+  const editForm = document.getElementById("edit-form");
+  const cancelBtn = document.getElementById("cancel-btn");
 
-    // Get due date from HTML attribute
-    const dueDateStr = dueDateEl.getAttribute('datetime');
-    const dueDate = new Date(dueDateStr);
+  const editTitleInput = document.getElementById("edit-title");
+  const editDescInput = document.getElementById("edit-desc");
+  const editPrioritySelect = document.getElementById("edit-priority");
+  const editDueDateInput = document.getElementById("edit-due-date");
 
-    /**
-     * Calculates and formats the time remaining string
-     */
-    function updateTimeRemaining() {
-        const now = new Date();
-        const diffMs = dueDate - now;
-        const diffAbs = Math.abs(diffMs);
-        
-        const seconds = Math.floor(diffAbs / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        const days = Math.floor(hours / 24);
+  let state = {
+    title: todoTitle.textContent.trim(),
+    description: todoDesc.textContent.trim(),
+    status: statusControl.value,
+    priority: "High",
+    dueDate: new Date(dueDateDisplay.getAttribute("datetime")),
+    isExpanded: false,
+  };
 
-        let resultMessage = "";
+  function renderUI() {
+    todoTitle.textContent = state.title;
+    todoDesc.textContent = state.description;
 
-        if (diffMs < 0) {
-            // Overdue
-            if (hours < 1) {
-                resultMessage = `Overdue by ${minutes} minutes`;
-            } else if (hours < 24) {
-                resultMessage = `Overdue by ${hours} hour${hours > 1 ? 's' : ''}`;
-            } else {
-                resultMessage = `Overdue by ${days} day${days > 1 ? 's' : ''}`;
-            }
-        } else {
-            // Future due
-            if (minutes < 1) {
-                resultMessage = "Due now!";
-            } else if (hours < 1) {
-                resultMessage = `Due in ${minutes} minutes`;
-            } else if (hours < 24) {
-                resultMessage = `Due in ${hours} hour${hours > 1 ? 's' : ''}`;
-            } else if (days === 1) {
-                resultMessage = "Due tomorrow";
-            } else {
-                resultMessage = `Due in ${days} days`;
-            }
-        }
+    statusDisplay.textContent = state.status;
+    statusDisplay.setAttribute("aria-label", `Current status: ${state.status}`);
+    statusControl.value = state.status;
+    todoToggle.checked = state.status === "Done";
 
-        timeRemainingEl.textContent = resultMessage;
+    statusDisplay.className = `badge status-badge-${state.status.toLowerCase().replace(" ", "-")}`;
+    if (state.status === "Done") {
+      todoTitle.classList.add("completed");
+      todoCard.classList.add("status-done");
+    } else {
+      todoTitle.classList.remove("completed");
+      todoCard.classList.remove("status-done");
     }
 
-    /**
-     * Handles the completion toggle behavior
-     */
-    function handleToggle() {
-        if (todoToggle.checked) {
-            todoTitle.classList.add('completed');
-            todoStatus.textContent = 'Done';
-            todoStatus.classList.remove('status-pending');
-            todoStatus.classList.add('status-done');
-            todoStatus.setAttribute('aria-label', 'Current status: Done');
-        } else {
-            todoTitle.classList.remove('completed');
-            todoStatus.textContent = 'Pending';
-            todoStatus.classList.remove('status-done');
-            todoStatus.classList.add('status-pending');
-            todoStatus.setAttribute('aria-label', 'Current status: Pending');
-        }
+    const priorityOuter = priorityDisplay.closest(".badge");
+    priorityDisplay.textContent = state.priority;
+    priorityOuter.setAttribute("aria-label", `Priority: ${state.priority}`);
+    priorityOuter.className = `badge priority-badge-${state.priority.toLowerCase()}`;
+
+    todoCard.classList.remove(
+      "priority-low",
+      "priority-medium",
+      "priority-high",
+    );
+    todoCard.classList.add(`priority-${state.priority.toLowerCase()}`);
+
+    dueDateDisplay.textContent = `Due ${state.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+    dueDateDisplay.setAttribute("datetime", state.dueDate.toISOString());
+
+    updateTimeLogic();
+    checkExpandability();
+  }
+
+  function updateTimeLogic() {
+    if (state.status === "Done") {
+      timeRemainingEl.textContent = "Completed";
+      todoCard.classList.remove("is-overdue");
+      return;
     }
 
-    // Initialize
-    updateTimeRemaining();
-    handleToggle();
+    const now = new Date();
+    const diffMs = state.dueDate - now;
+    const diffAbs = Math.abs(diffMs);
 
-    // Event Listeners
-    todoToggle.addEventListener('change', handleToggle);
+    const minutes = Math.floor(diffAbs / (1000 * 60));
+    const hours = Math.floor(diffAbs / (1000 * 60 * 60));
+    const days = Math.floor(diffAbs / (1000 * 60 * 60 * 24));
 
-    editBtn.addEventListener('click', () => {
-        console.log("Edit clicked: Navigate to edit mode...");
-        // In a real app, this might open a modal or change the card to an input form
-    });
+    let resultMessage = "";
+    const isOverdue = diffMs < 0;
 
-    deleteBtn.addEventListener('click', () => {
-        if (confirm("Are you sure you want to delete this task?")) {
-            console.log("Delete clicked: Removing task...");
-            document.querySelector('[data-testid="test-todo-card"]').style.opacity = '0.5';
-            document.querySelector('[data-testid="test-todo-card"]').style.pointerEvents = 'none';
-            alert("Delete clicked (Simulation)");
-        }
-    });
+    if (isOverdue) {
+      todoCard.classList.add("is-overdue");
+      if (minutes < 60) resultMessage = `Overdue by ${minutes} minutes`;
+      else if (hours < 24)
+        resultMessage = `Overdue by ${hours} hour${hours > 1 ? "s" : ""}`;
+      else resultMessage = `Overdue by ${days} day${days > 1 ? "s" : ""}`;
+    } else {
+      todoCard.classList.remove("is-overdue");
+      if (minutes < 1) resultMessage = "Due now!";
+      else if (minutes < 60) resultMessage = `Due in ${minutes} minutes`;
+      else if (hours < 24)
+        resultMessage = `Due in ${hours} hour${hours > 1 ? "s" : ""}`;
+      else resultMessage = `Due in ${days} day${days > 1 ? "s" : ""}`;
+    }
 
-    // Refresh time every 60 seconds
-    setInterval(updateTimeRemaining, 60000);
+    timeRemainingEl.textContent = resultMessage;
+  }
+
+  function toggleExpand() {
+    state.isExpanded = !state.isExpanded;
+    collapsibleSection.classList.toggle("collapsed", !state.isExpanded);
+    expandToggle.setAttribute("aria-expanded", state.isExpanded);
+    expandToggle.querySelector(".btn-text").textContent = state.isExpanded
+      ? "Show less"
+      : "Show more";
+  }
+
+  function checkExpandability() {
+    if (state.description.length > 100) {
+      expandToggle.style.display = "flex";
+    } else {
+      expandToggle.style.display = "none";
+      collapsibleSection.classList.remove("collapsed");
+    }
+  }
+
+  todoToggle.addEventListener("change", () => {
+    state.status = todoToggle.checked ? "Done" : "Pending";
+    renderUI();
+  });
+
+  statusControl.addEventListener("change", () => {
+    state.status = statusControl.value;
+    renderUI();
+  });
+
+  expandToggle.addEventListener("click", toggleExpand);
+
+  editBtn.addEventListener("click", () => {
+    editTitleInput.value = state.title;
+    editDescInput.value = state.description;
+    editPrioritySelect.value = state.priority;
+
+    const date = state.dueDate;
+    const formattedDate = new Date(
+      date.getTime() - date.getTimezoneOffset() * 60000,
+    )
+      .toISOString()
+      .slice(0, 16);
+    editDueDateInput.value = formattedDate;
+
+    todoCard.classList.add("is-editing");
+    editTitleInput.focus();
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    todoCard.classList.remove("is-editing");
+    editBtn.focus();
+  });
+
+  editForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    state.title = editTitleInput.value;
+    state.description = editDescInput.value;
+    state.priority = editPrioritySelect.value;
+    state.dueDate = new Date(editDueDateInput.value);
+
+    todoCard.classList.remove("is-editing");
+    renderUI();
+    editBtn.focus();
+  });
+
+  deleteBtn.addEventListener("click", () => {
+    if (confirm("Are you sure you want to delete this task?")) {
+      todoCard.style.opacity = "0.5";
+      todoCard.style.pointerEvents = "none";
+      alert("Delete simulated!");
+    }
+  });
+
+  setInterval(updateTimeLogic, 30000);
+
+  renderUI();
 });
