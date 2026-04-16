@@ -93,7 +93,7 @@ body {
   background-color: var(--p-medium-accent);
 }
 .todo-card.priority-high::before {
-  background-color: var(--p-high-accent);
+  /* background-color: var(--p-high-accent); */
 }
 
 .todo-header {
